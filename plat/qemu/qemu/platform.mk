@@ -179,6 +179,8 @@ ifeq (${BL32_RAM_LOCATION}, tsram)
   BL32_RAM_LOCATION_ID = SEC_SRAM_ID
 else ifeq (${BL32_RAM_LOCATION}, tdram)
   BL32_RAM_LOCATION_ID = SEC_DRAM_ID
+else ifeq (${BL32_RAM_LOCATION}, nsdram)
+  BL32_RAM_LOCATION_ID = NS_DRAM_ID
 else
   $(error "Unsupported BL32_RAM_LOCATION value")
 endif
