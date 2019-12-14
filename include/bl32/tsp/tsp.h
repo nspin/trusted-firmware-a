@@ -7,6 +7,8 @@
 #ifndef TSP_H
 #define TSP_H
 
+#define TSP_PUTCHAR		0xf200000a
+
 /*
  * SMC function IDs that TSP uses to signal various forms of completions
  * to the secure payload dispatcher.

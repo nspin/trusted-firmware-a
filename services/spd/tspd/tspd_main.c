@@ -297,6 +297,10 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 
 	switch (smc_fid) {
 
+	case TSP_PUTCHAR:
+		putchar(x1);
+		SMC_RET0(handle);
+
 	/*
 	 * This function ID is used by TSP to indicate that it was
 	 * preempted by a normal world IRQ.
