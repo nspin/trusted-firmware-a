@@ -52,7 +52,7 @@ static int32_t opteed_cpu_off_handler(u_register_t unused)
 	 */
 	set_optee_pstate(optee_ctx->state, OPTEE_PSTATE_OFF);
 
-	 return 0;
+	return 0;
 }
 
 /*******************************************************************************
