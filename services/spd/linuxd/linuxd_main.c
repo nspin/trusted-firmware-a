@@ -22,7 +22,6 @@
 #include <arch_helpers.h>
 #include <bl31/bl31.h>
 #include <bl31/ehf.h>
-#include <bl32/tsp/tsp.h>
 #include <common/bl_common.h>
 #include <common/debug.h>
 #include <common/runtime_svc.h>
@@ -30,6 +29,7 @@
 #include <plat/common/platform.h>
 #include <tools_share/uuid.h>
 
+#include "tsp.h"
 #include "linuxd_private.h"
 
 /*******************************************************************************

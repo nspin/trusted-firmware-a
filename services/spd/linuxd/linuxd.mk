@@ -1,9 +1,5 @@
 TSPD_DIR		:=	services/spd/linuxd
 
-ifeq (${ERROR_DEPRECATED},0)
-SPD_INCLUDES		:=	-Iinclude/bl32/tsp
-endif
-
 SPD_SOURCES		:=	services/spd/linuxd/linuxd_common.c		\
 				services/spd/linuxd/linuxd_helpers.S	\
 				services/spd/linuxd/linuxd_main.c		\
