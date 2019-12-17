@@ -1,25 +1,18 @@
-TSPD_DIR		:=	services/spd/linuxd
+#
+# Copyright (c) 2013-2019, ARM Limited and Contributors. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
 
-ifeq (${ERROR_DEPRECATED},0)
-SPD_INCLUDES		:=	-Iinclude/bl32/tsp
-endif
+OPTEED_DIR		:=	services/spd/opteed
+SPD_INCLUDES		:=
 
-SPD_SOURCES		:=	services/spd/linuxd/linuxd_common.c		\
-				services/spd/linuxd/linuxd_helpers.S	\
-				services/spd/linuxd/linuxd_main.c		\
-				services/spd/linuxd/linuxd_pm.c
+SPD_SOURCES		:=	services/spd/opteed/opteed_common.c	\
+				services/spd/opteed/opteed_helpers.S	\
+				services/spd/opteed/opteed_main.c	\
+				services/spd/opteed/opteed_pm.c
 
-NEED_BL32 := yes
+NEED_BL32		:=	yes
 
-# Flag used to enable routing of non-secure interrupts to EL3 when they are
-# generated while the code is executing in S-EL1/0.
-TSP_NS_INTR_ASYNC_PREEMPT	:=	0
-
-ifeq ($(EL3_EXCEPTION_HANDLING),1)
-ifeq ($(TSP_NS_INTR_ASYNC_PREEMPT),0)
-$(error When EL3_EXCEPTION_HANDLING=1, TSP_NS_INTR_ASYNC_PREEMPT must also be 1)
-endif
-endif
-
-$(eval $(call assert_boolean,TSP_NS_INTR_ASYNC_PREEMPT))
-$(eval $(call add_define,TSP_NS_INTR_ASYNC_PREEMPT))
+# required so that optee code can control access to the timer registers
+NS_TIMER_SWITCH		:=	1
