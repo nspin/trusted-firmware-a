@@ -29,27 +29,27 @@
 #include <plat/common/platform.h>
 #include <tools_share/uuid.h>
 
-#include "tsp.h"
+#include "linux.h"
 #include "linuxd_private.h"
 
 /*******************************************************************************
  * Address of the entrypoint vector table in the Secure Payload. It is
  * initialised once on the primary core after a cold boot.
  ******************************************************************************/
-tsp_vectors_t *tsp_vectors;
+linux_vectors_t *linux_vectors;
 
 /*******************************************************************************
  * Array to keep track of per-cpu Secure Payload state
  ******************************************************************************/
-tsp_context_t tspd_sp_context[TSPD_CORE_COUNT];
+linux_context_t linuxd_sp_context[LINUXD_CORE_COUNT];
 
 
-/* TSP UID */
-DEFINE_SVC_UUID2(tsp_uuid,
+/* LINUX UID */
+DEFINE_SVC_UUID2(linux_uuid,
 	0xa056305b, 0x9132, 0x7b42, 0x98, 0x11,
 	0x71, 0x68, 0xca, 0x50, 0xf3, 0xfa);
 
-int32_t tspd_init(void);
+int32_t linuxd_init(void);
 
 /*
  * This helper function handles Secure EL1 preemption. The preemption could be
@@ -57,7 +57,7 @@ int32_t tspd_init(void);
  * switch to the normal world and in case of EL3 interrupts, it will again be
  * routed to EL3 which will get handled at the exception vectors.
  */
-uint64_t tspd_handle_sp_preemption(void *handle)
+uint64_t linuxd_handle_sp_preemption(void *handle)
 {
 	cpu_context_t *ns_cpu_context;
 
@@ -68,10 +68,10 @@ uint64_t tspd_handle_sp_preemption(void *handle)
 	assert(ns_cpu_context);
 
 	/*
-	 * To allow Secure EL1 interrupt handler to re-enter TSP while TSP
+	 * To allow Secure EL1 interrupt handler to re-enter LINUX while LINUX
 	 * is preempted, the secure system register context which will get
 	 * overwritten must be additionally saved. This is currently done
-	 * by the TSPD S-EL1 interrupt handler.
+	 * by the LINUXD S-EL1 interrupt handler.
 	 */
 
 	/*
@@ -81,7 +81,7 @@ uint64_t tspd_handle_sp_preemption(void *handle)
 	cm_set_next_eret_context(NON_SECURE);
 
 	/*
-	 * The TSP was preempted during execution of a Yielding SMC Call.
+	 * The LINUX was preempted during execution of a Yielding SMC Call.
 	 * Return back to the normal world with SMC_PREEMPTED as error
 	 * code in x0.
 	 */
@@ -89,17 +89,17 @@ uint64_t tspd_handle_sp_preemption(void *handle)
 }
 
 /*******************************************************************************
- * This function is the handler registered for S-EL1 interrupts by the TSPD. It
- * validates the interrupt and upon success arranges entry into the TSP at
- * 'tsp_sel1_intr_entry()' for handling the interrupt.
+ * This function is the handler registered for S-EL1 interrupts by the LINUXD. It
+ * validates the interrupt and upon success arranges entry into the LINUX at
+ * 'linux_sel1_intr_entry()' for handling the interrupt.
  ******************************************************************************/
-static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
+static uint64_t linuxd_sel1_interrupt_handler(uint32_t id,
 					    uint32_t flags,
 					    void *handle,
 					    void *cookie)
 {
 	uint32_t linear_id;
-	tsp_context_t *tsp_ctx;
+	linux_context_t *linux_ctx;
 
 	/* Check the security state when the exception was generated */
 	assert(get_interrupt_src_ss(flags) == NON_SECURE);
@@ -107,58 +107,58 @@ static uint64_t tspd_sel1_interrupt_handler(uint32_t id,
 	/* Sanity check the pointer to this cpu's context */
 	assert(handle == cm_get_context(NON_SECURE));
 
-	/* Save the non-secure context before entering the TSP */
+	/* Save the non-secure context before entering the LINUX */
 	cm_el1_sysregs_context_save(NON_SECURE);
 
-	/* Get a reference to this cpu's TSP context */
+	/* Get a reference to this cpu's LINUX context */
 	linear_id = plat_my_core_pos();
-	tsp_ctx = &tspd_sp_context[linear_id];
-	assert(&tsp_ctx->cpu_ctx == cm_get_context(SECURE));
+	linux_ctx = &linuxd_sp_context[linear_id];
+	assert(&linux_ctx->cpu_ctx == cm_get_context(SECURE));
 
 	/*
-	 * Determine if the TSP was previously preempted. Its last known
+	 * Determine if the LINUX was previously preempted. Its last known
 	 * context has to be preserved in this case.
-	 * The TSP should return control to the TSPD after handling this
+	 * The LINUX should return control to the LINUXD after handling this
 	 * S-EL1 interrupt. Preserve essential EL3 context to allow entry into
-	 * the TSP at the S-EL1 interrupt entry point using the 'cpu_context'
+	 * the LINUX at the S-EL1 interrupt entry point using the 'cpu_context'
 	 * structure. There is no need to save the secure system register
-	 * context since the TSP is supposed to preserve it during S-EL1
+	 * context since the LINUX is supposed to preserve it during S-EL1
 	 * interrupt handling.
 	 */
-	if (get_yield_smc_active_flag(tsp_ctx->state)) {
-		tsp_ctx->saved_spsr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
+	if (get_yield_smc_active_flag(linux_ctx->state)) {
+		linux_ctx->saved_spsr_el3 = SMC_GET_EL3(&linux_ctx->cpu_ctx,
 						      CTX_SPSR_EL3);
-		tsp_ctx->saved_elr_el3 = SMC_GET_EL3(&tsp_ctx->cpu_ctx,
+		linux_ctx->saved_elr_el3 = SMC_GET_EL3(&linux_ctx->cpu_ctx,
 						     CTX_ELR_EL3);
-#if TSP_NS_INTR_ASYNC_PREEMPT
+#if LINUX_NS_INTR_ASYNC_PREEMPT
 		/*Need to save the previously interrupted secure context */
-		memcpy(&tsp_ctx->sp_ctx, &tsp_ctx->cpu_ctx, TSPD_SP_CTX_SIZE);
+		memcpy(&linux_ctx->sp_ctx, &linux_ctx->cpu_ctx, LINUXD_SP_CTX_SIZE);
 #endif
 	}
 
 	cm_el1_sysregs_context_restore(SECURE);
-	cm_set_elr_spsr_el3(SECURE, (uint64_t) &tsp_vectors->sel1_intr_entry,
+	cm_set_elr_spsr_el3(SECURE, (uint64_t) &linux_vectors->sel1_intr_entry,
 		    SPSR_64(MODE_EL1, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS));
 
 	cm_set_next_eret_context(SECURE);
 
 	/*
-	 * Tell the TSP that it has to handle a S-EL1 interrupt synchronously.
+	 * Tell the LINUX that it has to handle a S-EL1 interrupt synchronously.
 	 * Also the instruction in normal world where the interrupt was
 	 * generated is passed for debugging purposes. It is safe to retrieve
 	 * this address from ELR_EL3 as the secure context will not take effect
 	 * until el3_exit().
 	 */
-	SMC_RET2(&tsp_ctx->cpu_ctx, TSP_HANDLE_SEL1_INTR_AND_RETURN, read_elr_el3());
+	SMC_RET2(&linux_ctx->cpu_ctx, LINUX_HANDLE_SEL1_INTR_AND_RETURN, read_elr_el3());
 }
 
-#if TSP_NS_INTR_ASYNC_PREEMPT
+#if LINUX_NS_INTR_ASYNC_PREEMPT
 /*******************************************************************************
  * This function is the handler registered for Non secure interrupts by the
- * TSPD. It validates the interrupt and upon success arranges entry into the
+ * LINUXD. It validates the interrupt and upon success arranges entry into the
  * normal world for handling the interrupt.
  ******************************************************************************/
-static uint64_t tspd_ns_interrupt_handler(uint32_t id,
+static uint64_t linuxd_ns_interrupt_handler(uint32_t id,
 					    uint32_t flags,
 					    void *handle,
 					    void *cookie)
@@ -172,7 +172,7 @@ static uint64_t tspd_ns_interrupt_handler(uint32_t id,
 	 */
 	disable_intr_rm_local(INTR_TYPE_NS, SECURE);
 
-	return tspd_handle_sp_preemption(handle);
+	return linuxd_handle_sp_preemption(handle);
 }
 #endif
 
@@ -181,9 +181,9 @@ static uint64_t tspd_ns_interrupt_handler(uint32_t id,
  * (aarch32/aarch64) if not already known and initialises the context for entry
  * into the SP for its initialisation.
  ******************************************************************************/
-static int32_t tspd_setup(void)
+static int32_t linuxd_setup(void)
 {
-	entry_point_info_t *tsp_ep_info;
+	entry_point_info_t *linux_ep_info;
 	uint32_t linear_id;
 
 	linear_id = plat_my_core_pos();
@@ -193,10 +193,10 @@ static int32_t tspd_setup(void)
 	 * absence is a critical failure.  TODO: Add support to
 	 * conditionally include the SPD service
 	 */
-	tsp_ep_info = bl31_plat_get_next_image_ep_info(SECURE);
-	if (!tsp_ep_info) {
-		WARN("No TSP provided by BL2 boot loader, Booting device"
-			" without TSP initialization. SMC`s destined for TSP"
+	linux_ep_info = bl31_plat_get_next_image_ep_info(SECURE);
+	if (!linux_ep_info) {
+		WARN("No LINUX provided by BL2 boot loader, Booting device"
+			" without LINUX initialization. SMC`s destined for LINUX"
 			" will return SMC_UNK\n");
 		return 1;
 	}
@@ -206,7 +206,7 @@ static int32_t tspd_setup(void)
 	 * signalling failure initializing the service. We bail out without
 	 * registering any handlers
 	 */
-	if (!tsp_ep_info->pc)
+	if (!linux_ep_info->pc)
 		return 1;
 
 	/*
@@ -214,19 +214,19 @@ static int32_t tspd_setup(void)
 	 * state i.e whether AArch32 or AArch64. Assuming it's AArch64
 	 * for the time being.
 	 */
-	tspd_init_tsp_ep_state(tsp_ep_info,
-				TSP_AARCH64,
-				tsp_ep_info->pc,
-				&tspd_sp_context[linear_id]);
+	linuxd_init_linux_ep_state(linux_ep_info,
+				LINUX_AARCH64,
+				linux_ep_info->pc,
+				&linuxd_sp_context[linear_id]);
 
-#if TSP_INIT_ASYNC
+#if LINUX_INIT_ASYNC
 	bl31_set_next_image_type(SECURE);
 #else
 	/*
-	 * All TSPD initialization done. Now register our init function with
+	 * All LINUXD initialization done. Now register our init function with
 	 * BL31 for deferred invocation
 	 */
-	bl31_register_bl32_init(&tspd_init);
+	bl31_register_bl32_init(&linuxd_init);
 #endif
 	return 0;
 }
@@ -234,33 +234,33 @@ static int32_t tspd_setup(void)
 /*******************************************************************************
  * This function passes control to the Secure Payload image (BL32) for the first
  * time on the primary cpu after a cold boot. It assumes that a valid secure
- * context has already been created by tspd_setup() which can be directly used.
+ * context has already been created by linuxd_setup() which can be directly used.
  * It also assumes that a valid non-secure context has been initialised by PSCI
  * so it does not need to save and restore any non-secure state. This function
  * performs a synchronous entry into the Secure payload. The SP passes control
  * back to this routine through a SMC.
  ******************************************************************************/
-int32_t tspd_init(void)
+int32_t linuxd_init(void)
 {
 	uint32_t linear_id = plat_my_core_pos();
-	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
-	entry_point_info_t *tsp_entry_point;
+	linux_context_t *linux_ctx = &linuxd_sp_context[linear_id];
+	entry_point_info_t *linux_entry_point;
 	uint64_t rc;
 
 	/*
 	 * Get information about the Secure Payload (BL32) image. Its
 	 * absence is a critical failure.
 	 */
-	tsp_entry_point = bl31_plat_get_next_image_ep_info(SECURE);
-	assert(tsp_entry_point);
+	linux_entry_point = bl31_plat_get_next_image_ep_info(SECURE);
+	assert(linux_entry_point);
 
-	cm_init_my_context(tsp_entry_point);
+	cm_init_my_context(linux_entry_point);
 
 	/*
 	 * Arrange for an entry into the test secure payload. It will be
-	 * returned via TSP_ENTRY_DONE case
+	 * returned via LINUX_ENTRY_DONE case
 	 */
-	rc = tspd_synchronous_sp_entry(tsp_ctx);
+	rc = linuxd_synchronous_sp_entry(linux_ctx);
 	assert(rc != 0);
 
 	return rc;
@@ -275,7 +275,7 @@ int32_t tspd_init(void)
  * will also return any information that the secure payload needs to do the
  * work assigned to it.
  ******************************************************************************/
-static uintptr_t tspd_smc_handler(uint32_t smc_fid,
+static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 			 u_register_t x1,
 			 u_register_t x2,
 			 u_register_t x3,
@@ -286,9 +286,9 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 {
 	cpu_context_t *ns_cpu_context;
 	uint32_t linear_id = plat_my_core_pos(), ns;
-	tsp_context_t *tsp_ctx = &tspd_sp_context[linear_id];
+	linux_context_t *linux_ctx = &linuxd_sp_context[linear_id];
 	uint64_t rc;
-#if TSP_INIT_ASYNC
+#if LINUX_INIT_ASYNC
 	entry_point_info_t *next_image_info;
 #endif
 
@@ -297,28 +297,28 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 
 	switch (smc_fid) {
 
-	case TSP_PUTCHAR:
+	case LINUX_PUTCHAR:
 		putchar(x1);
 		SMC_RET0(handle);
 
 	/*
-	 * This function ID is used by TSP to indicate that it was
+	 * This function ID is used by LINUX to indicate that it was
 	 * preempted by a normal world IRQ.
 	 *
 	 */
-	case TSP_PREEMPTED:
+	case LINUX_PREEMPTED:
 		if (ns)
 			SMC_RET1(handle, SMC_UNK);
 
-		return tspd_handle_sp_preemption(handle);
+		return linuxd_handle_sp_preemption(handle);
 
 	/*
-	 * This function ID is used only by the TSP to indicate that it has
+	 * This function ID is used only by the LINUX to indicate that it has
 	 * finished handling a S-EL1 interrupt or was preempted by a higher
 	 * priority pending EL3 interrupt. Execution should resume
 	 * in the normal world.
 	 */
-	case TSP_HANDLED_S_EL1_INTR:
+	case LINUX_HANDLED_S_EL1_INTR:
 		if (ns)
 			SMC_RET1(handle, SMC_UNK);
 
@@ -328,20 +328,20 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * Restore the relevant EL3 state which saved to service
 		 * this SMC.
 		 */
-		if (get_yield_smc_active_flag(tsp_ctx->state)) {
-			SMC_SET_EL3(&tsp_ctx->cpu_ctx,
+		if (get_yield_smc_active_flag(linux_ctx->state)) {
+			SMC_SET_EL3(&linux_ctx->cpu_ctx,
 				    CTX_SPSR_EL3,
-				    tsp_ctx->saved_spsr_el3);
-			SMC_SET_EL3(&tsp_ctx->cpu_ctx,
+				    linux_ctx->saved_spsr_el3);
+			SMC_SET_EL3(&linux_ctx->cpu_ctx,
 				    CTX_ELR_EL3,
-				    tsp_ctx->saved_elr_el3);
-#if TSP_NS_INTR_ASYNC_PREEMPT
+				    linux_ctx->saved_elr_el3);
+#if LINUX_NS_INTR_ASYNC_PREEMPT
 			/*
 			 * Need to restore the previously interrupted
 			 * secure context.
 			 */
-			memcpy(&tsp_ctx->cpu_ctx, &tsp_ctx->sp_ctx,
-				TSPD_SP_CTX_SIZE);
+			memcpy(&linux_ctx->cpu_ctx, &linux_ctx->sp_ctx,
+				LINUXD_SP_CTX_SIZE);
 #endif
 		}
 
@@ -351,7 +351,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 
 		/*
 		 * Restore non-secure state. There is no need to save the
-		 * secure system register context since the TSP was supposed
+		 * secure system register context since the LINUX was supposed
 		 * to preserve it during S-EL1 interrupt handling.
 		 */
 		cm_el1_sysregs_context_restore(NON_SECURE);
@@ -363,7 +363,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 	 * This function ID is used only by the SP to indicate it has
 	 * finished initialising itself after a cold boot
 	 */
-	case TSP_ENTRY_DONE:
+	case LINUX_ENTRY_DONE:
 		if (ns)
 			SMC_RET1(handle, SMC_UNK);
 
@@ -371,17 +371,17 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * Stash the SP entry points information. This is done
 		 * only once on the primary cpu
 		 */
-		assert(tsp_vectors == NULL);
-		tsp_vectors = (tsp_vectors_t *) x1;
+		assert(linux_vectors == NULL);
+		linux_vectors = (linux_vectors_t *) x1;
 
-		if (tsp_vectors) {
-			set_tsp_pstate(tsp_ctx->state, TSP_PSTATE_ON);
+		if (linux_vectors) {
+			set_linux_pstate(linux_ctx->state, LINUX_PSTATE_ON);
 
 			/*
-			 * TSP has been successfully initialized. Register power
+			 * LINUX has been successfully initialized. Register power
 			 * management hooks with PSCI
 			 */
-			psci_register_spd_pm_hook(&tspd_pm);
+			psci_register_spd_pm_hook(&linuxd_pm);
 
 			/*
 			 * Register an interrupt handler for S-EL1 interrupts
@@ -391,12 +391,12 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 			flags = 0;
 			set_interrupt_rm_flag(flags, NON_SECURE);
 			rc = register_interrupt_type_handler(INTR_TYPE_S_EL1,
-						tspd_sel1_interrupt_handler,
+						linuxd_sel1_interrupt_handler,
 						flags);
 			if (rc)
 				panic();
 
-#if TSP_NS_INTR_ASYNC_PREEMPT
+#if LINUX_NS_INTR_ASYNC_PREEMPT
 			/*
 			 * Register an interrupt handler for NS interrupts when
 			 * generated during code executing in secure state are
@@ -406,7 +406,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 			set_interrupt_rm_flag(flags, SECURE);
 
 			rc = register_interrupt_type_handler(INTR_TYPE_NS,
-						tspd_ns_interrupt_handler,
+						linuxd_ns_interrupt_handler,
 						flags);
 			if (rc)
 				panic();
@@ -419,9 +419,9 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		}
 
 
-#if TSP_INIT_ASYNC
+#if LINUX_INIT_ASYNC
 		/* Save the Secure EL1 system register context */
-		assert(cm_get_context(SECURE) == &tsp_ctx->cpu_ctx);
+		assert(cm_get_context(SECURE) == &linux_ctx->cpu_ctx);
 		cm_el1_sysregs_context_save(SECURE);
 
 		/* Program EL3 registers to enable entry into the next EL */
@@ -440,14 +440,14 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * into the SP. Jump back to the original C runtime
 		 * context.
 		 */
-		tspd_synchronous_sp_exit(tsp_ctx, x1);
+		linuxd_synchronous_sp_exit(linux_ctx, x1);
 		break;
 #endif
 	/*
 	 * This function ID is used only by the SP to indicate it has finished
 	 * aborting a preempted Yielding SMC Call.
 	 */
-	case TSP_ABORT_DONE:
+	case LINUX_ABORT_DONE:
 
 	/*
 	 * These function IDs are used only by the SP to indicate it has
@@ -457,8 +457,8 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 	 * 2. resuming itself after an earlier psci cpu_suspend
 	 *    request.
 	 */
-	case TSP_ON_DONE:
-	case TSP_RESUME_DONE:
+	case LINUX_ON_DONE:
+	case LINUX_RESUME_DONE:
 
 	/*
 	 * These function IDs are used only by the SP to indicate it has
@@ -468,10 +468,10 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 	 * 2. turning itself off in response to an earlier psci
 	 *    cpu_off request.
 	 */
-	case TSP_OFF_DONE:
-	case TSP_SUSPEND_DONE:
-	case TSP_SYSTEM_OFF_DONE:
-	case TSP_SYSTEM_RESET_DONE:
+	case LINUX_OFF_DONE:
+	case LINUX_SUSPEND_DONE:
+	case LINUX_SYSTEM_OFF_DONE:
+	case LINUX_SYSTEM_RESET_DONE:
 		if (ns)
 			SMC_RET1(handle, SMC_UNK);
 
@@ -481,14 +481,14 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * Jump back to the original C runtime context, and pass x1 as
 		 * return value to the caller
 		 */
-		tspd_synchronous_sp_exit(tsp_ctx, x1);
+		linuxd_synchronous_sp_exit(linux_ctx, x1);
 		break;
 
 	/*
 	 * Request from the non-secure world to abort a preempted Yielding SMC
 	 * Call.
 	 */
-	case TSP_FID_ABORT:
+	case LINUX_FID_ABORT:
 		/* ABORT should only be invoked by normal world */
 		if (!ns) {
 			assert(0);
@@ -499,14 +499,14 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		cm_el1_sysregs_context_save(NON_SECURE);
 
 		/* Abort the preempted SMC request */
-		if (!tspd_abort_preempted_smc(tsp_ctx)) {
+		if (!linuxd_abort_preempted_smc(linux_ctx)) {
 			/*
 			 * If there was no preempted SMC to abort, return
 			 * SMC_UNK.
 			 *
 			 * Restoring the NON_SECURE context is not necessary as
 			 * the synchronous entry did not take place if the
-			 * return code of tspd_abort_preempted_smc is zero.
+			 * return code of linuxd_abort_preempted_smc is zero.
 			 */
 			cm_set_next_eret_context(NON_SECURE);
 			break;
@@ -520,7 +520,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * Request from non secure world to resume the preempted
 		 * Yielding SMC Call.
 		 */
-	case TSP_FID_RESUME:
+	case LINUX_FID_RESUME:
 		/* RESUME should be invoked only by normal world */
 		if (!ns) {
 			assert(0);
@@ -535,7 +535,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		assert(handle == cm_get_context(NON_SECURE));
 
 		/* Check if we are already preempted before resume */
-		if (!get_yield_smc_active_flag(tsp_ctx->state))
+		if (!get_yield_smc_active_flag(linux_ctx->state))
 			SMC_RET1(handle, SMC_UNK);
 
 		cm_el1_sysregs_context_save(NON_SECURE);
@@ -544,7 +544,7 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * We are done stashing the non-secure context. Ask the
 		 * secure payload to do the work now.
 		 */
-#if TSP_NS_INTR_ASYNC_PREEMPT
+#if LINUX_NS_INTR_ASYNC_PREEMPT
 		/*
 		 * Enable the routing of NS interrupts to EL3 during resumption
 		 * of a Yielding SMC Call on this core.
@@ -556,17 +556,17 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		/*
 		 * Allow the resumed yielding SMC processing to be preempted by
 		 * Non-secure interrupts. Also, supply the preemption return
-		 * code for TSP.
+		 * code for LINUX.
 		 */
-		ehf_allow_ns_preemption(TSP_PREEMPTED);
+		ehf_allow_ns_preemption(LINUX_PREEMPTED);
 #endif
 
 		/* We just need to return to the preempted point in
-		 * TSP and the execution will resume as normal.
+		 * LINUX and the execution will resume as normal.
 		 */
 		cm_el1_sysregs_context_restore(SECURE);
 		cm_set_next_eret_context(SECURE);
-		SMC_RET0(&tsp_ctx->cpu_ctx);
+		SMC_RET0(&linux_ctx->cpu_ctx);
 
 		/*
 		 * This is a request from the secure payload for more arguments
@@ -574,11 +574,11 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * non-secure world. Simply return the arguments from the non-
 		 * secure client in the original call.
 		 */
-	case TSP_GET_ARGS:
+	case LINUX_GET_ARGS:
 		if (ns)
 			SMC_RET1(handle, SMC_UNK);
 
-		get_tsp_args(tsp_ctx, x1, x2);
+		get_linux_args(linux_ctx, x1, x2);
 		SMC_RET2(handle, x1, x2);
 
 	case TOS_CALL_COUNT:
@@ -586,15 +586,15 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 		 * Return the number of service function IDs implemented to
 		 * provide service to non-secure
 		 */
-		SMC_RET1(handle, TSP_NUM_FID);
+		SMC_RET1(handle, LINUX_NUM_FID);
 
 	case TOS_UID:
-		/* Return TSP UID to the caller */
-		SMC_UUID_RET(handle, tsp_uuid);
+		/* Return LINUX UID to the caller */
+		SMC_UUID_RET(handle, linux_uuid);
 
 	case TOS_CALL_VERSION:
 		/* Return the version of current implementation */
-		SMC_RET2(handle, TSP_VERSION_MAJOR, TSP_VERSION_MINOR);
+		SMC_RET2(handle, LINUX_VERSION_MAJOR, LINUX_VERSION_MINOR);
 
 	default:
 		break;
@@ -605,22 +605,22 @@ static uintptr_t tspd_smc_handler(uint32_t smc_fid,
 
 /* Define a SPD runtime service descriptor for fast SMC calls */
 DECLARE_RT_SVC(
-	tspd_fast,
+	linuxd_fast,
 
 	OEN_TOS_START,
 	OEN_TOS_END,
 	SMC_TYPE_FAST,
-	tspd_setup,
-	tspd_smc_handler
+	linuxd_setup,
+	linuxd_smc_handler
 );
 
 /* Define a SPD runtime service descriptor for Yielding SMC Calls */
 DECLARE_RT_SVC(
-	tspd_std,
+	linuxd_std,
 
 	OEN_TOS_START,
 	OEN_TOS_END,
 	SMC_TYPE_YIELD,
 	NULL,
-	tspd_smc_handler
+	linuxd_smc_handler
 );
