@@ -95,8 +95,6 @@ CASSERT(TLKD_C_RT_CTX_SIZE == sizeof(c_rt_regs_t),	\
  * 'c_rt_ctx'       - stack address to restore C runtime context from after
  *                    returning from a synchronous entry into the SP.
  * 'cpu_ctx'        - space to maintain SP architectural state
- * 'saved_tsp_args' - space to store arguments for TSP arithmetic operations
- *                    which will queried using the TSP_GET_ARGS SMC by TSP.
  ******************************************************************************/
 typedef struct tlk_context {
 	uint32_t state;
