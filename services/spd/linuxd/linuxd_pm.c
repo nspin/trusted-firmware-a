@@ -13,7 +13,7 @@
 #include <lib/el3_runtime/context_mgmt.h>
 #include <plat/common/platform.h>
 
-#include "tspd_private.h"
+#include "linuxd_private.h"
 
 /*******************************************************************************
  * The target cpu is being turned on. Allow the TSPD/TSP to perform any actions

@@ -14,7 +14,7 @@
 #include <lib/el3_runtime/context_mgmt.h>
 #include <lib/utils.h>
 
-#include "tspd_private.h"
+#include "linuxd_private.h"
 
 /*******************************************************************************
  * Given a secure payload entrypoint info pointer, entry point PC, register

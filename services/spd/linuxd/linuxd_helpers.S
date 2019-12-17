@@ -5,7 +5,7 @@
  */
 
 #include <asm_macros.S>
-#include "tspd_private.h"
+#include "linuxd_private.h"
 
 	.global	tspd_enter_sp
 	/* ---------------------------------------------

@@ -30,7 +30,7 @@
 #include <plat/common/platform.h>
 #include <tools_share/uuid.h>
 
-#include "tspd_private.h"
+#include "linuxd_private.h"
 
 /*******************************************************************************
  * Address of the entrypoint vector table in the Secure Payload. It is
