@@ -272,6 +272,12 @@ static uintptr_t opteed_smc_handler(uint32_t smc_fid,
 	 */
 
 	switch (smc_fid) {
+
+	#define SMC_PUTCHAR 0xf200000a
+	case SMC_PUTCHAR:
+		putchar(x1);
+		SMC_RET0(handle);
+
 	/*
 	 * OPTEE has finished initialising itself after a cold boot
 	 */
