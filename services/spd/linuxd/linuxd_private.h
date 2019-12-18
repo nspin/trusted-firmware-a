@@ -60,19 +60,6 @@
 #define LINUX_AARCH64		MODE_RW_64
 
 /*******************************************************************************
- * The SPD should know the type of Secure Payload.
- ******************************************************************************/
-#define LINUX_TYPE_UP		PSCI_TOS_NOT_UP_MIG_CAP
-#define LINUX_TYPE_UPM		PSCI_TOS_UP_MIG_CAP
-#define LINUX_TYPE_MP		PSCI_TOS_NOT_PRESENT_MP
-
-/*******************************************************************************
- * Secure Payload migrate type information as known to the SPD. We assume that
- * the SPD is dealing with an MP Secure Payload.
- ******************************************************************************/
-#define LINUX_MIGRATE_INFO		LINUX_TYPE_MP
-
-/*******************************************************************************
  * Number of cpus that the present on this platform. TODO: Rely on a topology
  * tree to determine this in the future to avoid assumptions about mpidr
  * allocation

@@ -33,10 +33,6 @@ void linuxd_init_linux_ep_state(struct entry_point_info *linux_entry_point,
 	assert(linux_entry_point);
 	assert(pc);
 
-	/*
-	 * We support AArch64 LINUX for now.
-	 * TODO: Add support for AArch32 LINUX
-	 */
 	assert(rw == LINUX_AARCH64);
 
 	/* Associate this context with the cpu specified */

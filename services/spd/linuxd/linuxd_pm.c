@@ -180,7 +180,7 @@ static void linuxd_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
  ******************************************************************************/
 static int32_t linuxd_cpu_migrate_info(u_register_t *resident_cpu)
 {
-	return LINUX_MIGRATE_INFO;
+	return PSCI_TOS_NOT_PRESENT_MP;
 }
 
 /*******************************************************************************

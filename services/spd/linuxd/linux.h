@@ -13,13 +13,13 @@
  * SMC function IDs that LINUX uses to signal various forms of completions
  * to the secure payload dispatcher.
  */
-#define LINUX_ENTRY_DONE		0xf2000000
+#define LINUX_ENTRY_DONE	0xf2000000
 #define LINUX_ON_DONE		0xf2000001
 #define LINUX_OFF_DONE		0xf2000002
 #define LINUX_SUSPEND_DONE	0xf2000003
-#define LINUX_RESUME_DONE		0xf2000004
+#define LINUX_RESUME_DONE	0xf2000004
 #define LINUX_PREEMPTED		0xf2000005
-#define LINUX_ABORT_DONE		0xf2000007
+#define LINUX_ABORT_DONE	0xf2000007
 #define LINUX_SYSTEM_OFF_DONE	0xf2000008
 #define LINUX_SYSTEM_RESET_DONE	0xf2000009
 
