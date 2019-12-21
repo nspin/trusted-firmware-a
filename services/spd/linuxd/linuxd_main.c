@@ -44,7 +44,6 @@ linux_vectors_t *linux_vectors;
 linux_context_t linuxd_sp_context[LINUXD_CORE_COUNT];
 
 
-/* LINUX UID */
 DEFINE_SVC_UUID2(linux_uuid,
 	0xa056305b, 0x9132, 0x7b42, 0x98, 0x11,
 	0x71, 0x68, 0xca, 0x50, 0xf3, 0xfb);
@@ -68,10 +67,10 @@ uint64_t linuxd_handle_sp_preemption(void *handle)
 	assert(ns_cpu_context);
 
 	/*
-	 * To allow Secure EL1 interrupt handler to re-enter LINUX while LINUX
+	 * To allow Secure EL1 interrupt handler to re-enter Linux while Linux
 	 * is preempted, the secure system register context which will get
 	 * overwritten must be additionally saved. This is currently done
-	 * by the LINUXD S-EL1 interrupt handler.
+	 * by the LinuxD S-EL1 interrupt handler.
 	 */
 
 	/*
@@ -81,7 +80,7 @@ uint64_t linuxd_handle_sp_preemption(void *handle)
 	cm_set_next_eret_context(NON_SECURE);
 
 	/*
-	 * The LINUX was preempted during execution of a Yielding SMC Call.
+	 * The Linux was preempted during execution of a Yielding SMC Call.
 	 * Return back to the normal world with SMC_PREEMPTED as error
 	 * code in x0.
 	 */
@@ -89,8 +88,8 @@ uint64_t linuxd_handle_sp_preemption(void *handle)
 }
 
 /*******************************************************************************
- * This function is the handler registered for S-EL1 interrupts by the LINUXD. It
- * validates the interrupt and upon success arranges entry into the LINUX at
+ * This function is the handler registered for S-EL1 interrupts by the LinuxD. It
+ * validates the interrupt and upon success arranges entry into the Linux at
  * 'linux_sel1_intr_entry()' for handling the interrupt.
  ******************************************************************************/
 static uint64_t linuxd_sel1_interrupt_handler(uint32_t id,
@@ -107,22 +106,22 @@ static uint64_t linuxd_sel1_interrupt_handler(uint32_t id,
 	/* Sanity check the pointer to this cpu's context */
 	assert(handle == cm_get_context(NON_SECURE));
 
-	/* Save the non-secure context before entering the LINUX */
+	/* Save the non-secure context before entering the Linux */
 	cm_el1_sysregs_context_save(NON_SECURE);
 
-	/* Get a reference to this cpu's LINUX context */
+	/* Get a reference to this cpu's Linux context */
 	linear_id = plat_my_core_pos();
 	linux_ctx = &linuxd_sp_context[linear_id];
 	assert(&linux_ctx->cpu_ctx == cm_get_context(SECURE));
 
 	/*
-	 * Determine if the LINUX was previously preempted. Its last known
+	 * Determine if the Linux was previously preempted. Its last known
 	 * context has to be preserved in this case.
-	 * The LINUX should return control to the LINUXD after handling this
+	 * The Linux should return control to the LinuxD after handling this
 	 * S-EL1 interrupt. Preserve essential EL3 context to allow entry into
-	 * the LINUX at the S-EL1 interrupt entry point using the 'cpu_context'
+	 * the Linux at the S-EL1 interrupt entry point using the 'cpu_context'
 	 * structure. There is no need to save the secure system register
-	 * context since the LINUX is supposed to preserve it during S-EL1
+	 * context since the Linux is supposed to preserve it during S-EL1
 	 * interrupt handling.
 	 */
 	if (get_yield_smc_active_flag(linux_ctx->state)) {
@@ -143,7 +142,7 @@ static uint64_t linuxd_sel1_interrupt_handler(uint32_t id,
 	cm_set_next_eret_context(SECURE);
 
 	/*
-	 * Tell the LINUX that it has to handle a S-EL1 interrupt synchronously.
+	 * Tell the Linux that it has to handle a S-EL1 interrupt synchronously.
 	 * Also the instruction in normal world where the interrupt was
 	 * generated is passed for debugging purposes. It is safe to retrieve
 	 * this address from ELR_EL3 as the secure context will not take effect
@@ -155,7 +154,7 @@ static uint64_t linuxd_sel1_interrupt_handler(uint32_t id,
 #if LINUX_NS_INTR_ASYNC_PREEMPT
 /*******************************************************************************
  * This function is the handler registered for Non secure interrupts by the
- * LINUXD. It validates the interrupt and upon success arranges entry into the
+ * LinuxD. It validates the interrupt and upon success arranges entry into the
  * normal world for handling the interrupt.
  ******************************************************************************/
 static uint64_t linuxd_ns_interrupt_handler(uint32_t id,
@@ -195,8 +194,8 @@ static int32_t linuxd_setup(void)
 	 */
 	linux_ep_info = bl31_plat_get_next_image_ep_info(SECURE);
 	if (!linux_ep_info) {
-		WARN("No LINUX provided by BL2 boot loader, Booting device"
-			" without LINUX initialization. SMC`s destined for LINUX"
+		WARN("No Linux provided by BL2 boot loader, Booting device"
+			" without Linux initialization. SMC`s destined for Linux"
 			" will return SMC_UNK\n");
 		return 1;
 	}
@@ -223,7 +222,7 @@ static int32_t linuxd_setup(void)
 	bl31_set_next_image_type(SECURE);
 #else
 	/*
-	 * All LINUXD initialization done. Now register our init function with
+	 * All LinuxD initialization done. Now register our init function with
 	 * BL31 for deferred invocation
 	 */
 	bl31_register_bl32_init(&linuxd_init);
@@ -302,7 +301,7 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 		SMC_RET0(handle);
 
 	/*
-	 * This function ID is used by LINUX to indicate that it was
+	 * This function ID is used by Linux to indicate that it was
 	 * preempted by a normal world IRQ.
 	 *
 	 */
@@ -313,7 +312,7 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 		return linuxd_handle_sp_preemption(handle);
 
 	/*
-	 * This function ID is used only by the LINUX to indicate that it has
+	 * This function ID is used only by the Linux to indicate that it has
 	 * finished handling a S-EL1 interrupt or was preempted by a higher
 	 * priority pending EL3 interrupt. Execution should resume
 	 * in the normal world.
@@ -351,7 +350,7 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 
 		/*
 		 * Restore non-secure state. There is no need to save the
-		 * secure system register context since the LINUX was supposed
+		 * secure system register context since the Linux was supposed
 		 * to preserve it during S-EL1 interrupt handling.
 		 */
 		cm_el1_sysregs_context_restore(NON_SECURE);
@@ -378,7 +377,7 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 			set_linux_pstate(linux_ctx->state, LINUX_PSTATE_ON);
 
 			/*
-			 * LINUX has been successfully initialized. Register power
+			 * Linux has been successfully initialized. Register power
 			 * management hooks with PSCI
 			 */
 			psci_register_spd_pm_hook(&linuxd_pm);
@@ -556,13 +555,13 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 		/*
 		 * Allow the resumed yielding SMC processing to be preempted by
 		 * Non-secure interrupts. Also, supply the preemption return
-		 * code for LINUX.
+		 * code for Linux.
 		 */
 		ehf_allow_ns_preemption(LINUX_PREEMPTED);
 #endif
 
 		/* We just need to return to the preempted point in
-		 * LINUX and the execution will resume as normal.
+		 * Linux and the execution will resume as normal.
 		 */
 		cm_el1_sysregs_context_restore(SECURE);
 		cm_set_next_eret_context(SECURE);
@@ -589,7 +588,7 @@ static uintptr_t linuxd_smc_handler(uint32_t smc_fid,
 		SMC_RET1(handle, LINUX_NUM_FID);
 
 	case TOS_UID:
-		/* Return LINUX UID to the caller */
+		/* Return Linux UID to the caller */
 		SMC_UUID_RET(handle, linux_uuid);
 
 	case TOS_CALL_VERSION:

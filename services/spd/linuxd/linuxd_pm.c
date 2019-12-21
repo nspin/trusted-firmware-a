@@ -16,7 +16,7 @@
 #include "linuxd_private.h"
 
 /*******************************************************************************
- * The target cpu is being turned on. Allow the LINUXD/LINUX to perform any actions
+ * The target cpu is being turned on. Allow the LinuxD/Linux to perform any actions
  * needed. Nothing at the moment.
  ******************************************************************************/
 static void linuxd_cpu_on_handler(u_register_t target_cpu)
@@ -24,7 +24,7 @@ static void linuxd_cpu_on_handler(u_register_t target_cpu)
 }
 
 /*******************************************************************************
- * This cpu is being turned off. Allow the LINUXD/LINUX to perform any actions
+ * This cpu is being turned off. Allow the LinuxD/Linux to perform any actions
  * needed
  ******************************************************************************/
 static int32_t linuxd_cpu_off_handler(u_register_t unused)
@@ -42,19 +42,19 @@ static int32_t linuxd_cpu_off_handler(u_register_t unused)
 	 */
 	linuxd_abort_preempted_smc(linux_ctx);
 
-	/* Program the entry point and enter the LINUX */
+	/* Program the entry point and enter the Linux */
 	cm_set_elr_el3(SECURE, (uint64_t) &linux_vectors->cpu_off_entry);
 	rc = linuxd_synchronous_sp_entry(linux_ctx);
 
 	/*
-	 * Read the response from the LINUX. A non-zero return means that
-	 * something went wrong while communicating with the LINUX.
+	 * Read the response from the Linux. A non-zero return means that
+	 * something went wrong while communicating with the Linux.
 	 */
 	if (rc != 0)
 		panic();
 
 	/*
-	 * Reset LINUX's context for a fresh start when this cpu is turned on
+	 * Reset Linux's context for a fresh start when this cpu is turned on
 	 * subsequently.
 	 */
 	set_linux_pstate(linux_ctx->state, LINUX_PSTATE_OFF);
@@ -64,7 +64,7 @@ static int32_t linuxd_cpu_off_handler(u_register_t unused)
 
 /*******************************************************************************
  * This cpu is being suspended. S-EL1 state must have been saved in the
- * resident cpu (mpidr format) if it is a UP/UP migratable LINUX.
+ * resident cpu (mpidr format) if it is a UP/UP migratable Linux.
  ******************************************************************************/
 static void linuxd_cpu_suspend_handler(u_register_t max_off_pwrlvl)
 {
@@ -81,23 +81,23 @@ static void linuxd_cpu_suspend_handler(u_register_t max_off_pwrlvl)
 	 */
 	linuxd_abort_preempted_smc(linux_ctx);
 
-	/* Program the entry point and enter the LINUX */
+	/* Program the entry point and enter the Linux */
 	cm_set_elr_el3(SECURE, (uint64_t) &linux_vectors->cpu_suspend_entry);
 	rc = linuxd_synchronous_sp_entry(linux_ctx);
 
 	/*
-	 * Read the response from the LINUX. A non-zero return means that
-	 * something went wrong while communicating with the LINUX.
+	 * Read the response from the Linux. A non-zero return means that
+	 * something went wrong while communicating with the Linux.
 	 */
 	if (rc)
 		panic();
 
-	/* Update its context to reflect the state the LINUX is in */
+	/* Update its context to reflect the state the Linux is in */
 	set_linux_pstate(linux_ctx->state, LINUX_PSTATE_SUSPEND);
 }
 
 /*******************************************************************************
- * This cpu has been turned on. Enter the LINUX to initialise S-EL1 and other bits
+ * This cpu has been turned on. Enter the Linux to initialise S-EL1 and other bits
  * before passing control back to the Secure Monitor. Entry in S-EL1 is done
  * after initialising minimal architectural state that guarantees safe
  * execution.
@@ -128,11 +128,11 @@ static void linuxd_cpu_on_finish_handler(u_register_t unused)
 	disable_intr_rm_local(INTR_TYPE_NS, SECURE);
 #endif
 
-	/* Enter the LINUX */
+	/* Enter the Linux */
 	rc = linuxd_synchronous_sp_entry(linux_ctx);
 
 	/*
-	 * Read the response from the LINUX. A non-zero return means that
+	 * Read the response from the Linux. A non-zero return means that
 	 * something went wrong while communicating with the SP.
 	 */
 	if (rc != 0)
@@ -143,9 +143,9 @@ static void linuxd_cpu_on_finish_handler(u_register_t unused)
 }
 
 /*******************************************************************************
- * This cpu has resumed from suspend. The SPD saved the LINUX context when it
+ * This cpu has resumed from suspend. The SPD saved the Linux context when it
  * completed the preceding suspend call. Use that context to program an entry
- * into the LINUX to allow it to do any remaining book keeping
+ * into the Linux to allow it to do any remaining book keeping
  ******************************************************************************/
 static void linuxd_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
 {
@@ -164,8 +164,8 @@ static void linuxd_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
 	rc = linuxd_synchronous_sp_entry(linux_ctx);
 
 	/*
-	 * Read the response from the LINUX. A non-zero return means that
-	 * something went wrong while communicating with the LINUX.
+	 * Read the response from the Linux. A non-zero return means that
+	 * something went wrong while communicating with the Linux.
 	 */
 	if (rc != 0)
 		panic();
@@ -175,8 +175,8 @@ static void linuxd_cpu_suspend_finish_handler(u_register_t max_off_pwrlvl)
 }
 
 /*******************************************************************************
- * Return the type of LINUX the LINUXD is dealing with. Report the current resident
- * cpu (mpidr format) if it is a UP/UP migratable LINUX.
+ * Return the type of Linux the LinuxD is dealing with. Report the current resident
+ * cpu (mpidr format) if it is a UP/UP migratable Linux.
  ******************************************************************************/
 static int32_t linuxd_cpu_migrate_info(u_register_t *resident_cpu)
 {
@@ -184,7 +184,7 @@ static int32_t linuxd_cpu_migrate_info(u_register_t *resident_cpu)
 }
 
 /*******************************************************************************
- * System is about to be switched off. Allow the LINUXD/LINUX to perform
+ * System is about to be switched off. Allow the LinuxD/Linux to perform
  * any actions needed.
  ******************************************************************************/
 static void linuxd_system_off(void)
@@ -204,13 +204,13 @@ static void linuxd_system_off(void)
 	/* Program the entry point */
 	cm_set_elr_el3(SECURE, (uint64_t) &linux_vectors->system_off_entry);
 
-	/* Enter the LINUX. We do not care about the return value because we
+	/* Enter the Linux. We do not care about the return value because we
 	 * must continue the shutdown anyway */
 	linuxd_synchronous_sp_entry(linux_ctx);
 }
 
 /*******************************************************************************
- * System is about to be reset. Allow the LINUXD/LINUX to perform
+ * System is about to be reset. Allow the LinuxD/Linux to perform
  * any actions needed.
  ******************************************************************************/
 static void linuxd_system_reset(void)
@@ -231,15 +231,15 @@ static void linuxd_system_reset(void)
 	cm_set_elr_el3(SECURE, (uint64_t) &linux_vectors->system_reset_entry);
 
 	/*
-	 * Enter the LINUX. We do not care about the return value because we
+	 * Enter the Linux. We do not care about the return value because we
 	 * must continue the reset anyway
 	 */
 	linuxd_synchronous_sp_entry(linux_ctx);
 }
 
 /*******************************************************************************
- * Structure populated by the LINUX Dispatcher to be given a chance to perform any
- * LINUX bookkeeping before PSCI executes a power mgmt.  operation.
+ * Structure populated by the Linux Dispatcher to be given a chance to perform any
+ * Linux bookkeeping before PSCI executes a power mgmt.  operation.
  ******************************************************************************/
 const spd_pm_ops_t linuxd_pm = {
 	.svc_on = linuxd_cpu_on_handler,

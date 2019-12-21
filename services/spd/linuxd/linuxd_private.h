@@ -34,11 +34,11 @@
 
 
 /*
- * This flag is used by the LINUXD to determine if the LINUX is servicing a yielding
- * SMC request prior to programming the next entry into the LINUX e.g. if LINUX
+ * This flag is used by the LinuxD to determine if the Linux is servicing a yielding
+ * SMC request prior to programming the next entry into the Linux e.g. if Linux
  * execution is preempted by a non-secure interrupt and handed control to the
- * normal world. If another request which is distinct from what the LINUX was
- * previously doing arrives, then this flag will be help the LINUXD to either
+ * normal world. If another request which is distinct from what the Linux was
+ * previously doing arrives, then this flag will be help the LinuxD to either
  * reject the new request or service it while ensuring that the previous context
  * is not corrupted.
  */
@@ -87,7 +87,7 @@
 
 /*******************************************************************************
  * Constants that allow assembler code to preserve caller-saved registers of the
- * SP context while performing a LINUX preemption.
+ * SP context while performing a Linux preemption.
  * Note: These offsets have to match with the offsets for the corresponding
  * registers in cpu_context as we are using memcpy to copy the values from
  * cpu_context to sp_ctx.
@@ -120,8 +120,8 @@
 #include <lib/cassert.h>
 
 /*
- * The number of arguments to save during a SMC call for LINUX.
- * Currently only x1 and x2 are used by LINUX.
+ * The number of arguments to save during a SMC call for Linux.
+ * Currently only x1 and x2 are used by Linux.
  */
 #define LINUX_NUM_ARGS	0x2
 
@@ -150,16 +150,16 @@ CASSERT(LINUXD_SP_CTX_SIZE == sizeof(sp_ctx_regs_t),	\
 /*******************************************************************************
  * Structure which helps the SPD to maintain the per-cpu state of the SP.
  * 'saved_spsr_el3' - temporary copy to allow S-EL1 interrupt handling when
- *                    the LINUX has been preempted.
+ *                    the Linux has been preempted.
  * 'saved_elr_el3'  - temporary copy to allow S-EL1 interrupt handling when
- *                    the LINUX has been preempted.
+ *                    the Linux has been preempted.
  * 'state'          - collection of flags to track SP state e.g. on/off
  * 'mpidr'          - mpidr to associate a context with a cpu
  * 'c_rt_ctx'       - stack address to restore C runtime context from after
  *                    returning from a synchronous entry into the SP.
  * 'cpu_ctx'        - space to maintain SP architectural state
- * 'saved_linux_args' - space to store arguments for LINUX arithmetic operations
- *                    which will queried using the LINUX_GET_ARGS SMC by LINUX.
+ * 'saved_linux_args' - space to store arguments for Linux arithmetic operations
+ *                    which will queried using the LINUX_GET_ARGS SMC by Linux.
  * 'sp_ctx'         - space to save the SEL1 Secure Payload(SP) caller saved
  *                    register context after it has been preempted by an EL3
  *                    routed NS interrupt and when a Secure Interrupt is taken
@@ -189,7 +189,7 @@ typedef struct linux_context {
 				_x2 = _linux_ctx->saved_linux_args[1];\
 			} while (0)
 
-/* LINUXD power management handlers */
+/* LinuxD power management handlers */
 extern const spd_pm_ops_t linuxd_pm;
 
 /*******************************************************************************
